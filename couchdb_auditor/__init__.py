@@ -9,11 +9,13 @@
 
 import couchdb
 import getopt
+import logging
 import os
 import socket
 import sys
 from getpass import getpass
 from couchdb.http import extract_credentials, HTTPError
+from couchdb_auditor import auditor
 
 __version__ = '0.1'
 
@@ -43,6 +45,14 @@ _USER_DUPLICATE = """Multiple users defined, couldn't decide which one to use:
 %s or %s
 """
 
+def get_logger(name, level=logging.DEBUG):
+    fmt = '[%(asctime)s]  [%(levelname)s]  [%(name)s]  %(funcName)s  %(message)s'
+    instance = logging.Logger(name, level)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter(fmt))
+    instance.addHandler(handler)
+    return instance
+
 def run(url, credentials):
     server = couchdb.Server(url)
     server.resource.credentials = credentials
@@ -52,6 +62,8 @@ def run(url, credentials):
         sys.stdout.write('%s: %s\n' % (err.__class__.__name__, err))
         sys.stdout.flush()
         sys.exit(1)
+    log = get_logger('couchdb.audit.server')
+    auditor.audit_server(server, log)
     return 0
 
 def main():
