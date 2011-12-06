@@ -7,11 +7,13 @@
 # you should have received as part of this distribution.
 #
 
+import couchdb
 import getopt
 import os
+import socket
 import sys
 from getpass import getpass
-from couchdb.http import extract_credentials
+from couchdb.http import extract_credentials, HTTPError
 
 __version__ = '0.1'
 
@@ -42,6 +44,14 @@ _USER_DUPLICATE = """Multiple users defined, couldn't decide which one to use:
 """
 
 def run(url, credentials):
+    server = couchdb.Server(url)
+    server.resource.credentials = credentials
+    try:
+        server.resource.head()
+    except (HTTPError, socket.error), err:
+        sys.stdout.write('%s: %s\n' % (err.__class__.__name__, err))
+        sys.stdout.flush()
+        sys.exit(1)
     return 0
 
 def main():
