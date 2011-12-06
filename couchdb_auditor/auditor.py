@@ -326,3 +326,12 @@ def check_db_users(server, log, cache):
         else:
             log.warn(*args)
         cache['users'] = users
+
+@database_rule
+def check_db_security(db, log):
+    _, _, security = db.resource('_security').get_json()
+
+    db_admins = security.get('admins', {})
+    has_admins = db_admins.get('names') or db_admins.get('roles')
+    if not has_admins:
+        log.error('Database is in Admin Party state')
