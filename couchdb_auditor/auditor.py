@@ -62,7 +62,7 @@ def audit_server(server, log):
             rule(server, log)
         except socket.error, err:
             log.error('%s: %s', err.__class__.__name__, err)
-        except couchdb.HTTPError:
+        except couchdb.HTTPError, err:
             log.error('%s: %s', err.__class__.__name__, err.args[0][1])
 
 @server_rule
