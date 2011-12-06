@@ -9,6 +9,7 @@
 
 import couchdb
 import re
+import socket
 import textwrap
 from couchdb_auditor.client import Server
 
@@ -57,7 +58,12 @@ def audit_server(server, log):
         server = Server(server.resource.url)
         server.resource.credentials = credentials
     for rule in get_rules('server'):
-        rule(server, log)
+        try:
+            rule(server, log)
+        except socket.error, err:
+            log.error('%s: %s', err.__class__.__name__, err)
+        except couchdb.HTTPError:
+            log.error('%s: %s', err.__class__.__name__, err.args[0][1])
 
 @server_rule
 def check_version(server, log):
