@@ -173,6 +173,28 @@ def check_admins(server, log, cache):
                       ' %s', count, ', '.join(admins))
 
 @server_rule
+def check_auth_handlers(server, log, cache):
+    session = get_cached_value(cache, 'session', server.session)
+
+    default_handlers = ['oauth', 'cookie', 'default']
+    server_handlers = session['info']['authentication_handlers']
+    no_problems = True
+
+    for handler in default_handlers:
+        if handler not in server_handlers:
+            no_problems = False
+            log.error('Default authentication handler missed: %s', handler)
+
+    for handler in server_handlers:
+        if handler not in server_handlers:
+            no_problems = False
+            log.warn('Non-standard authentication handler: ', handler)
+
+    if no_problems:
+        handlers = ', '.join(default_handlers)
+        log.info('Authentication handlers are well known: %s' % handlers)
+
+@server_rule
 def check_geocouch(server, log, cache):
     try:
         config = get_cached_value(cache, 'config', server.config)
