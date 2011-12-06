@@ -321,8 +321,8 @@ def check_db_users(server, log, cache):
 
     if users is not None:
         args = 'Found about %d registered users', len(users)
-        if len(users) == 0:
-            log.warn(*args)
-        else:
+        if len(users):
             log.info(*args)
+        else:
+            log.warn(*args)
         cache['users'] = users
