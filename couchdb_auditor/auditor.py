@@ -52,22 +52,28 @@ def server_rule(func):
 def get_rules(name):
     return _RULES[name]
 
+def get_cached_value(cache, key, func):
+    if key not in cache:
+        cache[key] = func()
+    return cache[key]
+
 def audit_server(server, log):
     if server.__class__ is couchdb.Server:
         credentials =server.resource.credentials
         server = Server(server.resource.url)
         server.resource.credentials = credentials
+    cache = {}
     for rule in get_rules('server'):
         try:
-            rule(server, log)
+            rule(server, log, cache)
         except socket.error, err:
             log.error('%s: %s', err.__class__.__name__, err)
         except couchdb.HTTPError, err:
             log.error('%s: %s', err.__class__.__name__, err.args[0][1])
 
 @server_rule
-def check_version(server, log):
-    version = server.version()
+def check_version(server, log, cache):
+    version = get_cached_value(cache, 'version', server.version)
 
     v_match = re.match('^(?P<major>\d+)\.' \
                        '(?P<minor>\d+)\.'  \
@@ -85,8 +91,8 @@ def check_version(server, log):
             log.info('CouchDB version: %s', version)
 
 @server_rule
-def check_CVE_issues(server, log):
-    version = server.version()
+def check_CVE_issues(server, log, cache):
+    version = get_cached_value(cache, 'version', server.version)
 
     v_match = re.match('^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<revision>\d+).*$',
                        version)
@@ -107,8 +113,8 @@ def check_CVE_issues(server, log):
         log.info('Not affected by all known issues')
 
 @server_rule
-def check_audit_user(server, log):
-    session = server.session()
+def check_audit_user(server, log, cache):
+    session = get_cached_value(cache, 'session', server.session)
 
     userctx = session['userCtx']
     roles = '; site-wide roles: %s' % ', '.join(userctx['roles'])
@@ -124,7 +130,7 @@ def check_audit_user(server, log):
             log.warn('Auditing as: authenticated regular user %s', roles)
 
 @server_rule
-def check_config_access(server, log):
+def check_config_access(server, log, cache):
     try:
         server.config()
     except couchdb.Unauthorized:
@@ -144,9 +150,9 @@ def check_config_access(server, log):
         server.resource.credentials = credentials
 
 @server_rule
-def check_admins(server, log):
+def check_admins(server, log, cache):
     try:
-        config = server.config()
+        config = get_cached_value(cache, 'config', server.config)
     except couchdb.Unauthorized:
         log.error('Unable to audit config.'
                   ' Try to re-run this probe as an admin.')
