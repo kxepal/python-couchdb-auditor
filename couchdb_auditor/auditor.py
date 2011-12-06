@@ -333,7 +333,7 @@ def check_db_users(server, log, cache):
         cache['users'] = users
 
 @database_rule
-def check_db_security(db, log):
+def check_db_security(db, log, cache):
     _, _, security = db.resource('_security').get_json()
 
     db_admins = security.get('admins', {})
