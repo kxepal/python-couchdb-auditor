@@ -248,5 +248,52 @@ def check_auth_db(server, log, cache):
     try:
         server.resource(auth_db).head()
     except couchdb.HTTPError:
-        log.warn('Authentication database is not accessible directly'
-                 ' from outside')
+        log.warn('Authentication database is not accessible from outside')
+
+@server_rule
+def check_db_users(server, log, cache):
+    def get_users(db):
+        users = {}
+        for _id in db:
+            if _id.startswith('_design'):
+                continue
+            users[_id] = db[_id]
+        return users
+    session = get_cached_value(cache, 'session', server.session)
+
+    auth_db = session['info']['authentication_db']
+    db = couchdb.Database(server.resource(auth_db).url)
+    db.resource.credentials = server.resource.credentials
+    try:
+        db.resource.head()
+    except couchdb.HTTPError:
+        log.warn('Authentication database is not accessible from outside')
+        return
+
+    users = None
+    try:
+        db.resource.credentials = None
+        users = get_users(db)
+    except couchdb.Unauthorized:
+        log.info('Anonymous users could not observe authentication database')
+    finally:
+        db.resource.credentials = server.resource.credentials
+
+    if users:
+        log.warn('Anonymous users could knew everything about your users!')
+    else:
+        users = get_users(db)
+        if users:
+            if '_admin' not in session['userCtx']['roles']:
+                log.warn('Registered users could knew about others.')
+        elif users is None:
+            log.info('_all_docs view is not available for authentication'
+                     ' database')
+
+    if users is not None:
+        args = 'Found about %d registered users', len(users)
+        if len(users) == 0:
+            log.warn(*args)
+        else:
+            log.info(*args)
+        cache['users'] = users
