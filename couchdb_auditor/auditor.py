@@ -238,6 +238,21 @@ def check_facebook_auth(server, log, cache):
         log.info('Looks like Facebook Authentication is plugged in')
 
 @server_rule
+def check_query_servers(server, log, cache):
+    try:
+        config = get_cached_value(cache, 'config', server.config)
+    except couchdb.Unauthorized:
+        log.error('Unable to audit config.'
+                  ' Try to re-run this probe as an admin.')
+        return
+
+    query_servers = config['query_servers']
+    default_qs = ['javascript', 'coffeescript']
+    for item in query_servers:
+        if item not in default_qs:
+            log.warn('Using non standard query server: %s', item)
+
+@server_rule
 def check_auth_db(server, log, cache):
     session = get_cached_value(cache, 'session', server.session)
 
