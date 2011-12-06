@@ -7,8 +7,10 @@
 # you should have received as part of this distribution.
 #
 
+import couchdb
 import re
 import textwrap
+from couchdb_auditor.client import Server
 
 _RULES = {
     'server': []
@@ -50,6 +52,10 @@ def get_rules(name):
     return _RULES[name]
 
 def audit_server(server, log):
+    if server.__class__ is couchdb.Server:
+        credentials =server.resource.credentials
+        server = Server(server.resource.url)
+        server.resource.credentials = credentials
     for rule in get_rules('server'):
         rule(server, log)
 
