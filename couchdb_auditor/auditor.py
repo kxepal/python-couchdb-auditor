@@ -14,7 +14,8 @@ import textwrap
 from couchdb_auditor.client import Server
 
 _RULES = {
-    'server': []
+    'server': [],
+    'database': []
 }
 
 _CVES = [
@@ -49,6 +50,10 @@ def server_rule(func):
     _RULES['server'].append(func)
     return func
 
+def database_rule(func):
+    _RULES['database'].append(func)
+    return func
+
 def get_rules(name):
     return _RULES[name]
 
@@ -66,6 +71,15 @@ def audit_server(server, log, no_cache=False):
     for rule in get_rules('server'):
         try:
             rule(server, log, no_cache and {} or cache)
+        except socket.error, err:
+            log.error('%s: %s', err.__class__.__name__, err)
+        except couchdb.HTTPError, err:
+            log.error('%s: %s', err.__class__.__name__, err.args[0][1])
+
+def audit_database(db, log):
+    for rule in get_rules('database'):
+        try:
+            rule(db, log)
         except socket.error, err:
             log.error('%s: %s', err.__class__.__name__, err)
         except couchdb.HTTPError, err:
