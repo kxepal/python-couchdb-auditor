@@ -7,8 +7,88 @@
 # you should have received as part of this distribution.
 #
 
+import getopt
+import os
+import sys
+from getpass import getpass
+from couchdb.http import extract_credentials
+
+__version__ = '0.1'
+
+_VERSION = 'couchdb-auditor %s' % __version__
+
+_HELP = """Usage: %(name)s [OPTIONS] URL
+
+Arguments:
+
+  URL           CouchDB server URL in next form:
+                http[s]://[user[:password]@]host[:port]
+                Note that setting password in URL will make it visible in
+                shell history.
+
+Options:
+
+  --version     Display version information and exit
+  -h, --help    Display a this help message and exit
+  -u, --user    Set CouchDB user that would inspect server.
+                User could be also defined in URL. Password would be requested.
+""" % dict(name=os.path.basename(sys.argv[0]))
+
+_NO_URL = """URL argument must be specified. See --help for more information.
+"""
+
+_USER_DUPLICATE = """Multiple users defined, couldn't decide which one to use:
+%s or %s
+"""
+
+def run(url, credentials):
+    return 0
+
 def main():
-    pass
+    try:
+        options, arguments = getopt.gnu_getopt(
+            sys.argv[1:], 'hvu',
+            ['version', 'help', 'user=']
+        )
+    except getopt.GetoptError, err:
+        sys.stdout.write(('%s\n\n' % err).capitalize())
+        sys.stdout.write(_HELP)
+        sys.stdout.flush()
+        sys.exit(1)
+    message = None
+
+    if not arguments:
+        sys.stdout.write(_NO_URL)
+        sys.stdout.flush()
+        sys.exit(1)
+
+    url = arguments[0]
+    if not url.startswith('http://'):
+        url = 'http://' + url
+    _, credentials = extract_credentials(url)
+    if credentials:
+        credentials = list(credentials)
+
+    for option, value in options:
+        if option in ['--version']:
+            message = _VERSION
+        elif option in ['-h', '--help']:
+            message = _HELP
+        elif option in ['-u', '--user']:
+            if credentials and credentials[0] != value:
+                message = _USER_DUPLICATE % (credentials[0], value)
+            elif not credentials:
+                credentials = [value]
+
+    if message:
+        sys.stdout.write(message)
+        sys.stdout.flush()
+        sys.exit(0)
+
+    if credentials and len(credentials) == 1:
+        credentials.append(getpass('Enter password for %s: ' % credentials[0]))
+
+    sys.exit(run(url, credentials))
 
 if __name__ == '__main__':
     main()
