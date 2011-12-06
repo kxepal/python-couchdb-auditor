@@ -57,7 +57,7 @@ def get_cached_value(cache, key, func):
         cache[key] = func()
     return cache[key]
 
-def audit_server(server, log):
+def audit_server(server, log, no_cache=False):
     if server.__class__ is couchdb.Server:
         credentials =server.resource.credentials
         server = Server(server.resource.url)
@@ -65,7 +65,7 @@ def audit_server(server, log):
     cache = {}
     for rule in get_rules('server'):
         try:
-            rule(server, log, cache)
+            rule(server, log, no_cache and {} or cache)
         except socket.error, err:
             log.error('%s: %s', err.__class__.__name__, err)
         except couchdb.HTTPError, err:
