@@ -99,3 +99,20 @@ def check_CVE_issues(server, log):
 
     if not affected:
         log.info('Not affected by all known issues')
+
+@server_rule
+def check_audit_user(server, log):
+    session = server.session()
+
+    userctx = session['userCtx']
+    roles = '; site-wide roles: %s' % ', '.join(userctx['roles'])
+    if userctx['name'] is None:
+        if '_admin' in userctx['roles']:
+            log.warn('Auditing as: admin party %s', roles)
+        else:
+            log.warn('Auditing as: anonymous user %s', roles)
+    else:
+        if '_admin' in userctx['roles']:
+            log.info('Auditing as: authenticated admin user %s', roles)
+        else:
+            log.warn('Auditing as: authenticated regular user %s', roles)

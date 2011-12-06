@@ -10,4 +10,7 @@
 import couchdb
 
 class Server(couchdb.Server):
-    pass
+
+    def session(self):
+        _, _, session = self.resource('_session').get_json()
+        return session
