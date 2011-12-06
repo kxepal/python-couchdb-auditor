@@ -65,6 +65,22 @@ def run(url, credentials):
         sys.exit(1)
     log = get_logger('couchdb.audit.server')
     auditor.audit_server(server, log)
+
+    try:
+        dblist = list(server)
+    except HTTPError, err:
+        sys.stdout.write('Unable to get database list.\n')
+        sys.stdout.write('%s: %s\n' % (err.__class__.__name__, err.args[0][1]))
+        sys.stdout.flush()
+        sys.exit(1)
+
+    log = get_logger('couchdb.audit.database')
+    for dbname in dblist:
+        url = server.resource(dbname).url
+        db = couchdb.Database(url)
+        db.resource.credentials = credentials
+        auditor.audit_database(db, log)
+
     return 0
 
 def main():
