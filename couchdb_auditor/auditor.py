@@ -337,6 +337,12 @@ def check_db_security(db, log, cache):
     _, _, security = db.resource('_security').get_json()
 
     db_admins = security.get('admins', {})
+    db_members = security.get('readers', {})
     has_admins = db_admins.get('names') or db_admins.get('roles')
+    has_members = db_members.get('names') or db_members.get('roles')
     if not has_admins:
         log.error('Database is in Admin Party state')
+    elif not has_members:
+        log.warn('Database is public')
+    else:
+        log.info('Database has it own admins and members')
