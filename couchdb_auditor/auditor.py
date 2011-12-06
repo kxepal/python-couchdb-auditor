@@ -346,3 +346,105 @@ def check_db_security(db, log, cache):
         log.warn('Database is public')
     else:
         log.info('Database has it own admins and members')
+
+@database_rule
+def check_db_admins(db, log, cache):
+    _, _, security = db.resource('_security').get_json()
+
+    db_admins = security.get('admins', {})
+    db_admins.setdefault('names', [])
+    db_admins.setdefault('roles', [])
+
+    if not (db_admins['names'] or db_admins['roles']):
+        log.error('Anyone is database administrator and could easily drop it'
+                  ' with all %d documents' % len(db))
+        return
+
+    users = cache.get('users')
+    if not users:
+        log.error('Unable to audit database admins: user list is not available')
+        return
+
+    actual_admins = {'names': [], 'roles': []}
+    for _id, doc in users.items():
+        if doc['name'] in db_admins['names']:
+            actual_admins['names'].append(doc['name'])
+        if doc['roles'] in db_admins['roles']:
+            actual_admins['roles'].append(doc['name'])
+
+    diff = set(actual_admins['names']) ^ set(db_admins['names'])
+    total = len(db_admins['names'])
+    if total and not diff:
+        log.info('Found %d database administrators, all are actual', total)
+    elif total:
+        missed = len(diff)
+        log.error('Found %d database administrators, but %d of them are missed',
+                 total, missed)
+        log.error('Using next names anyone could easily become database'
+                  ' administrator: %s', ','.join(diff))
+    if db_admins['names']:
+        log.info('Database administrators: %s', ','.join(db_admins['names']))
+
+    diff = set(actual_admins['roles']) ^ set(db_admins['roles'])
+    total = len(db_admins['roles'])
+    if total and not diff:
+        log.info('Found %d database administrator roles, all are actual', total)
+    elif total:
+        missed = len(diff)
+        log.error('Found %d database administrator roles, but %d of them are'
+                 ' missed', total, missed)
+        log.error('Using next roles anyone could easily become database'
+                  ' administrator: %s', ','.join(diff))
+    if db_admins['roles']:
+        log.info('Database administrator roles: %s',
+                  ','.join(db_admins['roles']))
+
+@database_rule
+def check_db_members(db, log, cache):
+    _, _, security = db.resource('_security').get_json()
+
+    db_members =  security.get('readers', {})
+    db_members.setdefault('names', [])
+    db_members.setdefault('roles', [])
+
+    if not (db_members['names'] or db_members['roles']):
+        return
+
+    users = cache.get('users')
+    if not users:
+        log.error('Unable to audit database members: user list is not available')
+        return
+
+    actual_members = {'names': [], 'roles': []}
+    for _id, doc in users.items():
+        if doc['name'] in db_members['names']:
+            actual_members['names'].append(doc['name'])
+        if doc['roles'] in db_members['roles']:
+            actual_members['roles'].append(doc['roles'])
+
+
+    diff = set(actual_members['names']) ^ set(db_members['names'])
+    total = len(db_members['names'])
+    if not diff:
+        log.info('Found %d database members, all are actual', total)
+    else:
+        missed = len(diff)
+        log.warn('Found %d database members, but %d of them are missed',
+                 total, missed)
+        log.warn('Using next names anyone could easily become database'
+                  ' member: %s', ','.join(diff))
+    if db_members['names']:
+        log.info('Database member users: %s', ','.join(db_members['names']))
+
+    diff = set(actual_members['roles']) ^ set(db_members['roles'])
+    total = len(db_members['roles'])
+    if total and not diff:
+        log.info('Found %d database member roles, all are actual', total)
+    elif total:
+        missed = len(diff)
+        log.warn('Found %d database member roles, but %d of them are missed',
+                 total, missed)
+        log.warn('Using next roles anyone could easily become database'
+                  ' member: %s', ','.join(diff))
+    if db_members['roles']:
+        log.info('Database member roles: %s', ','.join(db_members['roles']))
