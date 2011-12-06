@@ -236,3 +236,17 @@ def check_facebook_auth(server, log, cache):
 
     if 'fb' in config and '_fb' in config['httpd_global_handlers']:
         log.info('Looks like Facebook Authentication is plugged in')
+
+@server_rule
+def check_auth_db(server, log, cache):
+    session = get_cached_value(cache, 'session', server.session)
+
+    auth_db = session['info']['authentication_db']
+    if auth_db != '_users':
+        log.warn('Non-standard authentication database: %s', auth_db)
+
+    try:
+        server.resource(auth_db).head()
+    except couchdb.HTTPError:
+        log.warn('Authentication database is not accessible directly'
+                 ' from outside')
