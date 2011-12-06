@@ -142,3 +142,26 @@ def check_config_access(server, log):
         log.error('Configuration is open for anyone')
     finally:
         server.resource.credentials = credentials
+
+@server_rule
+def check_admins(server, log):
+    try:
+        config = server.config()
+    except couchdb.Unauthorized:
+        log.error('Unable to audit config.'
+                  ' Try to re-run this probe as an admin.')
+        return
+
+    admins = config.get('admins')
+    if not admins:
+        log.error('This couch is in Admin Party.'
+                  ' Log in to Futon (/_utils) and click "Fix this": '
+                  '%s' % server.resource('_utils').url)
+    else:
+        count = len(admins)
+        if count == 1:
+            log.info('There is only one admin on couch: %s', admins[0]),
+        else:
+            log.warn('In production, admins should be used rarely,'
+                      ' but yet you have many (%d):'
+                      ' %s', count, ', '.join(admins))
