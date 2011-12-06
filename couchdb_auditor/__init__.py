@@ -57,14 +57,17 @@ def get_logger(name, level=logging.DEBUG):
 def run(url, credentials):
     server = Server(url)
     server.resource.credentials = credentials
+
     try:
         server.resource.head()
     except (HTTPError, socket.error), err:
         sys.stdout.write('%s: %s\n' % (err.__class__.__name__, err))
         sys.stdout.flush()
         sys.exit(1)
+
+    cache = {}
     log = get_logger('couchdb.audit.server')
-    auditor.audit_server(server, log)
+    auditor.audit_server(server, log, cache)
 
     try:
         dblist = list(server)
@@ -79,7 +82,7 @@ def run(url, credentials):
         url = server.resource(dbname).url
         db = couchdb.Database(url)
         db.resource.credentials = credentials
-        auditor.audit_database(db, log)
+        auditor.audit_database(db, log, cache)
 
     return 0
 
