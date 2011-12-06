@@ -122,3 +122,23 @@ def check_audit_user(server, log):
             log.info('Auditing as: authenticated admin user %s', roles)
         else:
             log.warn('Auditing as: authenticated regular user %s', roles)
+
+@server_rule
+def check_config_access(server, log):
+    try:
+        server.config()
+    except couchdb.Unauthorized:
+        log.error('Unable to audit config.'
+                  ' Try to re-run this probe as an admin.')
+        return
+
+    credentials = server.resource.credentials
+    try:
+        server.resource.credentials = None
+        server.config()
+    except couchdb.Unauthorized:
+        log.info('Configuration is closed for anonymous users')
+    else:
+        log.error('Configuration is open for anyone')
+    finally:
+        server.resource.credentials = credentials
