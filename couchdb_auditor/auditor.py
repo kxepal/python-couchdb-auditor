@@ -189,4 +189,16 @@ def check_geocouch(server, log, cache):
         if not key in httpd_design_handlers:
             break
     else:
-        log.info('Looks like GeoCouch is plugged in.')
+        log.info('Looks like GeoCouch is plugged in')
+
+@server_rule
+def check_browserid(server, log, cache):
+    try:
+        config = get_cached_value(cache, 'config', server.config)
+    except couchdb.Unauthorized:
+        log.error('Unable to audit config.'
+                  ' Try to re-run this probe as an admin.')
+        return
+
+    if 'browserid' in config and '_browserid' in config['httpd_global_handlers']:
+        log.info('Looks like BrowserID is plugged in')
