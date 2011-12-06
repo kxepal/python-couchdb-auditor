@@ -171,3 +171,22 @@ def check_admins(server, log, cache):
             log.warn('In production, admins should be used rarely,'
                       ' but yet you have many (%d):'
                       ' %s', count, ', '.join(admins))
+
+@server_rule
+def check_geocouch(server, log, cache):
+    try:
+        config = get_cached_value(cache, 'config', server.config)
+    except couchdb.Unauthorized:
+        log.error('Unable to audit config.'
+                  ' Try to re-run this probe as an admin.')
+        return
+
+    httpd_design_handlers = config['httpd_design_handlers']
+    possible_geocouch_handlers = [
+        '_spatial', '_spatial/_list', '_spatial/_info', '_spatial/_compact'
+    ]
+    for key in possible_geocouch_handlers:
+        if not key in httpd_design_handlers:
+            break
+    else:
+        log.info('Looks like GeoCouch is plugged in.')
