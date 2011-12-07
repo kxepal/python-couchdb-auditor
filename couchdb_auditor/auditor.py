@@ -80,24 +80,17 @@ def audit_server(server, log, cache=None):
             log.error('%s: %s', err.__class__.__name__, err.args[0][1])
 
 def audit_database(db, log, cache=None):
-    try:
-        log.info('%s', db.name)
-        db.resource.head()
-    except socket.error, err:
-        log.error('%s: %s', err.__class__.__name__, err)
-    except couchdb.HTTPError, err:
-        log.error('%s: %s', err.__class__.__name__, err.args[0][1])
-    else:
-        for rule in get_rules('database'):
-            try:
-                if cache is not None:
-                    rule(db, log, cache)
-                else:
-                    rule(db, log, {})
-            except socket.error, err:
-                log.error('%s: %s', err.__class__.__name__, err)
-            except couchdb.HTTPError, err:
-                log.error('%s: %s', err.__class__.__name__, err.args[0][1])
+    log.info('%s', db.name)
+    for rule in get_rules('database'):
+        try:
+            if cache is not None:
+                rule(db, log, cache)
+            else:
+                rule(db, log, {})
+        except socket.error, err:
+            log.error('%s: %s', err.__class__.__name__, err)
+        except couchdb.HTTPError, err:
+            log.error('%s: %s', err.__class__.__name__, err.args[0][1])
 
 def audit_ddoc(ddoc, log, cache=None):
     log.info('%s', ddoc['_id'])

@@ -112,6 +112,20 @@ def run(url, credentials, target='server'):
         db = couchdb.Database(url, name=name)
         db.resource.credentials = credentials
         root.info(' * %s', db.resource.url)
+
+        try:
+            db.info()['db_name']
+        except socket.error, err:
+            log.error('%s: %s', err.__class__.__name__, err)
+            return
+        except couchdb.HTTPError, err:
+            log.error('%s: %s', err.__class__.__name__, err.args[0][1])
+            return
+        except KeyError, err:
+            log.critical('%s: %s; Possible not database?',
+                         err.__class__.__name__, err)
+            return
+
         auditor.audit_database(db, log, cache)
 
         try:
