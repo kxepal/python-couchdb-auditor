@@ -121,7 +121,7 @@ def run(url, credentials, target='server'):
 
         for dbname in sorted(dblist):
             url = server.resource(dbname).url
-            audit_database(url, credentials, name=None, cache=cache)
+            audit_database(url, credentials, name=dbname, cache=cache)
 
     def audit_database(url, credentials, name=None, cache=None):
         if cache is None:
