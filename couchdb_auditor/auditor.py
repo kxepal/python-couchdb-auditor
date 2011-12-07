@@ -470,3 +470,26 @@ def check_db_members(db, log, cache):
                   ' member: %s', ','.join(diff))
     if db_members['roles']:
         log.info('Database member roles: %s', ','.join(db_members['roles']))
+
+@ddoc_rule
+def check_ddoc_language(ddoc, log, cache):
+    if 'language' not in ddoc:
+        log.error('Language is not explicitly defined')
+        return
+    log.info('Design language used: %s', ddoc['language'])
+
+    config = cache.get('config')
+    if config is None:
+        return
+
+    if ddoc['language'] not in config['query_servers']:
+        log.error('There is not query servers to handle ddoc language %s.'
+                  ' Possible languages are: %s',
+                  ddoc['language'], ', '.join(config['query_servers']))
+
+@ddoc_rule
+def check_ddoc_validate_func(ddoc, log, cache):
+    if 'validate_doc_update' not in ddoc:
+        log.warn('validate_doc_update function missed')
+    else:
+        log.info('validate_doc_update function exists')
