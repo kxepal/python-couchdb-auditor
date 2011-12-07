@@ -96,14 +96,16 @@ def run(url, credentials):
     for dbname in dblist:
         log = get_logger('couchdb.audit.database',  indent=2)
         url = server.resource(dbname).url
-        db = couchdb.Database(url)
+        db = couchdb.Database(url, name=dbname)
         db.resource.credentials = credentials
         auditor.audit_database(db, log, cache)
 
         try:
             rows = db.view('_all_docs', startkey='_design/',  endkey='_design0')
+            rows = list(rows)
         except HTTPError, err:
-            log.critical('Unable to get design documents list: %s', err.args[1])
+            log.critical('Unable to get design documents list: %s',
+                         err.args[0][1])
             continue
 
         for row in rows:
