@@ -158,6 +158,7 @@ def main():
     if credentials and len(credentials) == 1:
         credentials.append(getpass('Enter password for %s: ' % credentials[0]))
 
+    credentials = tuple(credentials)
     sys.exit(run(url, credentials))
 
 if __name__ == '__main__':
