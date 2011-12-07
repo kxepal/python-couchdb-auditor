@@ -80,8 +80,8 @@ def audit_server(server, log, cache=None):
             log.error('%s: %s', err.__class__.__name__, err.args[0][1])
 
 def audit_database(db, log, cache=None):
-    log.info('%s', db.name)
     try:
+        log.info('%s', db.name)
         db.resource.head()
     except socket.error, err:
         log.error('%s: %s', err.__class__.__name__, err)
