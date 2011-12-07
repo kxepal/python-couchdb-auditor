@@ -26,17 +26,20 @@ _HELP = """Usage: %(name)s [OPTIONS] URL
 
 Arguments:
 
-  URL           CouchDB server URL in next form:
-                http[s]://[user[:password]@]host[:port]
-                Note that setting password in URL will make it visible in
-                shell history.
+  URL              CouchDB server URL in next form:
+                   http[s]://[user[:password]@]host[:port]
+                   Note that setting password in URL will make it visible in
+                   shell history.
 
 Options:
 
-  --version     Display version information and exit
-  -h, --help    Display a this help message and exit
-  -u, --user=   Set CouchDB user that would inspect server.
-                User could be also defined in URL. Password would be requested.
+  --version        Display version information and exit.
+  -h, --help       Display a this help message and exit.
+  -u, --user=      Set CouchDB user that would inspect server
+                   User could be also defined in URL.
+                   Password will be requested.
+  -d, --database   Audit database by specified URL, not server.
+
 """ % dict(name=os.path.basename(sys.argv[0]))
 
 _NO_URL = """URL argument must be specified. See --help for more information.
@@ -69,33 +72,39 @@ def get_logger(name, level=logging.DEBUG, indent=0):
     instance.propagate = False
     return instance
 
-def run(url, credentials):
-    server = couchdb.Server(url)
-    server.resource.credentials = credentials
+def run(url, credentials, target='server'):
+    def audit_server(url, credentials):
+        server = couchdb.Server(url)
+        server.resource.credentials = credentials
 
-    try:
-        server.resource.head()
-    except (HTTPError, socket.error), err:
-        sys.stdout.write('%s: %s\n' % (err.__class__.__name__, err))
-        sys.stdout.flush()
-        sys.exit(1)
+        try:
+            server.resource.head()
+        except (HTTPError, socket.error), err:
+            sys.stdout.write('%s: %s\n' % (err.__class__.__name__, err))
+            sys.stdout.flush()
+            sys.exit(1)
 
-    cache = {}
-    log = get_logger('couchdb.audit.server', indent=0)
-    auditor.audit_server(server, log, cache)
+        cache = {}
+        log = get_logger('couchdb.audit.server', indent=0)
+        auditor.audit_server(server, log, cache)
 
-    try:
-        dblist = list(server)
-    except HTTPError, err:
-        sys.stdout.write('Unable to get database list.\n')
-        sys.stdout.write('%s: %s\n' % (err.__class__.__name__, err.args[0][1]))
-        sys.stdout.flush()
-        sys.exit(1)
+        try:
+            dblist = list(server)
+        except HTTPError, err:
+            sys.stdout.write('Unable to get database list.\n')
+            sys.stdout.write('%s: %s\n' % (err.__class__.__name__, err.args[0][1]))
+            sys.stdout.flush()
+            sys.exit(1)
 
-    for dbname in dblist:
+        for dbname in dblist:
+            url = server.resource(dbname).url
+            audit_database(url, credentials, name=None, cache=cache)
+
+    def audit_database(url, credentials, name=None, cache=None):
+        if cache is None:
+            cache = {}
         log = get_logger('couchdb.audit.database',  indent=1)
-        url = server.resource(dbname).url
-        db = couchdb.Database(url, name=dbname)
+        db = couchdb.Database(url, name=name)
         db.resource.credentials = credentials
         auditor.audit_database(db, log, cache)
 
@@ -105,20 +114,25 @@ def run(url, credentials):
         except HTTPError, err:
             log.critical('Unable to get design documents list: %s',
                          err.args[0][1])
-            continue
+            return
 
         for row in rows:
             log = get_logger('couchdb.audit.ddoc', indent=2)
             ddoc = db[row.id]
             auditor.audit_ddoc(ddoc, log, cache)
 
+    if target == 'server':
+        audit_server(url, credentials)
+    elif target == 'database':
+        audit_database(url, credentials)
+
     return 0
 
 def main():
     try:
         options, arguments = getopt.gnu_getopt(
-            sys.argv[1:], 'hvu:',
-            ['version', 'help', 'user=']
+            sys.argv[1:], 'hvu:d',
+            ['version', 'help', 'user=', 'database']
         )
     except getopt.GetoptError, err:
         sys.stdout.write(('%s\n\n' % err).capitalize())
@@ -132,6 +146,7 @@ def main():
         sys.stdout.flush()
         sys.exit(1)
 
+    target = 'server'
     url = arguments[0]
     if not url.startswith('http://'):
         url = 'http://' + url
@@ -149,6 +164,8 @@ def main():
                 message = _USER_DUPLICATE % (credentials[0], value)
             elif not credentials:
                 credentials = [value]
+        elif option in ['-d', '--database']:
+            target = 'database'
 
     if message:
         sys.stdout.write(message)
@@ -159,7 +176,7 @@ def main():
         credentials.append(getpass('Enter password for %s: ' % credentials[0]))
         credentials = tuple(credentials)
 
-    sys.exit(run(url, credentials))
+    sys.exit(run(url, credentials, target))
 
 if __name__ == '__main__':
     main()
