@@ -413,7 +413,7 @@ def check_db_admins(db, log, cache):
         if doc['name'] in db_admins['names']:
             actual_admins['names'].append(doc['name'])
         if doc['roles'] in db_admins['roles']:
-            actual_admins['roles'].append(doc['name'])
+            actual_admins['roles'].extend(doc['roles'])
 
     diff = set(actual_admins['names']) ^ set(db_admins['names'])
     total = len(db_admins['names'])
@@ -463,7 +463,7 @@ def check_db_members(db, log, cache):
         if doc['name'] in db_members['names']:
             actual_members['names'].append(doc['name'])
         if doc['roles'] in db_members['roles']:
-            actual_members['roles'].append(doc['roles'])
+            actual_members['roles'].extend(doc['roles'])
 
 
     diff = set(actual_members['names']) ^ set(db_members['names'])
