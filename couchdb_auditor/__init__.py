@@ -20,7 +20,7 @@ from couchdb_auditor import auditor
 
 __version__ = '0.1'
 
-_VERSION = 'couchdb-auditor %s' % __version__
+_VERSION = 'couchdb-auditor %s\n' % __version__
 
 _HELP = """Usage: %(name)s [OPTIONS] URL
 
@@ -42,8 +42,8 @@ Options:
 
 """ % dict(name=os.path.basename(sys.argv[0]))
 
-_NO_URL = """URL argument must be specified. See --help for more information.
-"""
+_NO_URL = """URL argument must be specified.
+""" + _HELP
 
 _USER_DUPLICATE = """Multiple users defined, couldn't decide which one to use:
 %s or %s
@@ -91,6 +91,8 @@ def get_logger(name, level=logging.DEBUG):
     return instance
 
 def run(url, credentials, target='server'):
+    if credentials:
+        credentials = tuple(credentials)
     root = logging.Logger('couchdb.audit')
     handler = logging.StreamHandler(sys.stdout)
     root.addHandler(handler)
@@ -180,29 +182,15 @@ def main():
         sys.exit(1)
     message = None
 
-    if not arguments:
-        sys.stdout.write(_NO_URL)
-        sys.stdout.flush()
-        sys.exit(1)
-
     target = 'server'
-    url = arguments[0]
-    if not url.startswith('http://'):
-        url = 'http://' + url
-    _, credentials = extract_credentials(url)
-    if credentials:
-        credentials = list(credentials)
-
+    user = None
     for option, value in options:
         if option in ['--version']:
             message = _VERSION
         elif option in ['-h', '--help']:
             message = _HELP
         elif option in ['-u', '--user']:
-            if credentials and credentials[0] != value:
-                message = _USER_DUPLICATE % (credentials[0], value)
-            elif not credentials:
-                credentials = [value]
+            user = value
         elif option in ['-d', '--database']:
             target = 'database'
 
@@ -211,9 +199,27 @@ def main():
         sys.stdout.flush()
         sys.exit(0)
 
+    if not arguments:
+        sys.stdout.write(_NO_URL)
+        sys.stdout.flush()
+        sys.exit(1)
+
+    url = arguments[0]
+    if not url.startswith('http://'):
+        url = 'http://' + url
+    _, credentials = extract_credentials(url)
+
+    if credentials:
+        if user is not None and credentials[0] != user:
+            sys.stdout.write(_USER_DUPLICATE % (credentials[0], user))
+            sys.stdout.flush()
+            sys.exit(1)
+        credentials = list(credentials)
+    elif user is not None:
+        credentials = [user]
+
     if credentials and len(credentials) == 1:
         credentials.append(getpass('Enter password for %s: ' % credentials[0]))
-        credentials = tuple(credentials)
 
     sys.exit(run(url, credentials, target))
 
