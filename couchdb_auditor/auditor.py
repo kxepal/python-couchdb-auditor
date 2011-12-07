@@ -361,12 +361,43 @@ def check_db_security(db, log, cache):
     db_members = security.get('readers', {})
     has_admins = db_admins.get('names') or db_admins.get('roles')
     has_members = db_members.get('names') or db_members.get('roles')
-    if not has_admins:
-        log.error('Database is in Admin Party state')
-    elif not has_members:
-        log.warn('Database is public')
+
+    session = cache.get('session')
+    if not session:
+        config = cache.get('config')
+        if not config:
+            log.warn('Could not determine user permission.'
+                     ' Hope there is no admin party')
+            userctx = {'name': None, 'roles': []}
+        elif config['admins']:
+            userctx = {'name': None, 'roles': []}
+        else:
+            userctx = {'name': None, 'roles': ['_admin']}
     else:
-        log.info('Database has it own admins and members')
+        userctx = session['userCtx']
+
+    admin_party = userctx['name'] is None and '_admin' in userctx['roles']
+
+    if admin_party:
+        log.error('Database shares Admin Party state!'
+                  ' Anyone could drop it with all %d documents', len(db))
+    else:
+        if has_admins:
+            log.info('Database has it own administrators')
+        if not has_members:
+            log.warn('Database is public')
+
+    ddocs = []
+    for row in db.view('_all_docs', startkey='_design/',  endkey='_design0'):
+        ddoc = db[row.id]
+        if 'validate_doc_update' in ddoc:
+            ddocs.append(row.id)
+
+    if not ddocs:
+        log.error('Database is not protected by validation functions!')
+    else:
+        log.info('Database is protected by next design documents: %s',
+                 ', '.join([ddoc.split('/')[1] for ddoc in ddocs]))
 
 @database_rule
 def check_db_admins(db, log, cache):
@@ -377,8 +408,6 @@ def check_db_admins(db, log, cache):
     db_admins.setdefault('roles', [])
 
     if not (db_admins['names'] or db_admins['roles']):
-        log.error('Anyone is database administrator and could easily drop it'
-                  ' with all %d documents' % len(db))
         return
 
     users = cache.get('users')
@@ -469,19 +498,6 @@ def check_db_members(db, log, cache):
                   ' member: %s', ','.join(diff))
     if db_members['roles']:
         log.info('Database member roles: %s', ','.join(db_members['roles']))
-
-@database_rule
-def check_validate_functions(db, log, cache):
-    ddocs = []
-    for row in db.view('_all_docs', startkey='_design/',  endkey='_design0'):
-        ddoc = db[row.id]
-        if 'validate_doc_update' in ddoc:
-            ddocs.append(row.id)
-    if not ddocs:
-        log.error('Database is not protected by validation functions!')
-    else:
-        log.info('Database is protected by next design documents: %s',
-                 ', '.join([ddoc.split('/')[1] for ddoc in ddocs]))
 
 @ddoc_rule
 def check_ddoc_language(ddoc, log, cache):
