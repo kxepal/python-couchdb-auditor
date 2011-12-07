@@ -11,12 +11,12 @@ import couchdb
 import getopt
 import logging
 import os
+import platform
 import socket
 import sys
 from getpass import getpass
 from couchdb.http import extract_credentials, HTTPError
 from couchdb_auditor import auditor
-from couchdb_auditor.colorlog import ColoredFormatter
 
 __version__ = '0.1'
 
@@ -49,25 +49,43 @@ _USER_DUPLICATE = """Multiple users defined, couldn't decide which one to use:
 %s or %s
 """
 
-class NiceFormatter(ColoredFormatter):
-    def __init__(self, fmt, indent=0):
-        fmt = '%(reset)s' + '  ' * indent + fmt
-        super(NiceFormatter, self).__init__(fmt)
+SYSTEM = platform.system().lower()
+
+class ColoredFormatter(logging.Formatter):
+
+    def __init__(self, fmt=None, datefmt=None):
+        self.colors = {
+            'CRITICAL': '\x1b[1;31m',
+            'ERROR': '\x1b[1;31m',
+            'INFO': '\x1b[1;32m',
+            'WARN': '\x1b[1;33m',
+            'WARNING': '\x1b[1;33m',
+            'DEBUG': '\x1b[1;37m',
+        }
+        self.reset = '\033[0m'
+        logging.Formatter.__init__(self, fmt, datefmt)
 
     def format(self, record):
+        if SYSTEM == 'linux':
+            record.reset = self.reset
+        else:
+            record.reset = ''
         record.funcName = '[%s]' % record.funcName
         levelname = record.levelname
-        if levelname in self.colors:
+        if SYSTEM == 'linux' and levelname in self.colors:
             color = self.colors[levelname]
-            levelname = levelname[0] * 2
-            record.levelname = '[%s]' % ''.join((color, levelname, self.reset))
-        return super(NiceFormatter, self).format(record)
+            levelname = ''.join((color, levelname[0] * 2, self.reset))
+            record.levelname = '[%s]' % levelname
+        else:
+            record.levelname = '[%s]' % (levelname[0] * 2)
+        return logging.Formatter.format(self, record)
 
-def get_logger(name, level=logging.DEBUG, indent=0):
-    fmt = '%(levelname)-8s %(funcName)-24s  %(message)s'
+
+def get_logger(name, level=logging.DEBUG):
+    fmt = '%(reset)s%(levelname)s  %(funcName)-24s  %(message)s'
     instance = logging.Logger('couchdb.audit.%s' % name, level)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(NiceFormatter(fmt, indent=indent))
+    handler.setFormatter(ColoredFormatter(fmt))
     instance.addHandler(handler)
     instance.propagate = False
     return instance
@@ -80,7 +98,7 @@ def run(url, credentials, target='server'):
     def audit_server(url, credentials):
         server = couchdb.Server(url)
         server.resource.credentials = credentials
-        root.info(' * %s', server.resource.url)
+        root.info(' * Server: %s', server.resource.url)
 
         try:
             server.resource.head()
@@ -101,7 +119,7 @@ def run(url, credentials, target='server'):
             sys.stdout.flush()
             sys.exit(1)
 
-        for dbname in dblist:
+        for dbname in sorted(dblist):
             url = server.resource(dbname).url
             audit_database(url, credentials, name=None, cache=cache)
 
@@ -111,7 +129,7 @@ def run(url, credentials, target='server'):
         log = get_logger('couchdb.audit.database')
         db = couchdb.Database(url, name=name)
         db.resource.credentials = credentials
-        root.info(' * %s', db.resource.url)
+        root.info('\n * Database: %s', db.resource.url)
 
         try:
             db.info()['db_name']
@@ -137,7 +155,7 @@ def run(url, credentials, target='server'):
             return
 
         for row in rows:
-            root.info(' * %s', db.resource(*row.id.split('/')).url)
+            root.info('\n * DDoc: %s', db.resource(*row.id.split('/')).url)
             log = get_logger('couchdb.audit.ddoc')
             ddoc = db[row.id]
             auditor.audit_ddoc(ddoc, log, cache)
