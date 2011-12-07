@@ -501,6 +501,13 @@ def check_ddoc_language(ddoc, log, cache):
                   ddoc['language'], ', '.join(config['query_servers']))
 
 @ddoc_rule
+def check_ddoc_functions(ddoc, log, cache):
+    for key in ['views', 'shows', 'lists', 'updates']:
+        if ddoc.get(key):
+            log.info('Found %d %s functions: %s',
+                     len(ddoc[key]), key[:-1], ', '.join(ddoc[key]))
+
+@ddoc_rule
 def check_ddoc_validate_func(ddoc, log, cache):
     if 'validate_doc_update' not in ddoc:
         log.warn('validate_doc_update function missed')
