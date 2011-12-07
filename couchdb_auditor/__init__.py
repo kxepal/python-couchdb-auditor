@@ -17,6 +17,7 @@ from getpass import getpass
 from couchdb.http import extract_credentials, HTTPError
 from couchdb_auditor import auditor
 from couchdb_auditor.client import Server
+from couchdb_auditor.colorlog import ColoredFormatter
 
 __version__ = '0.1'
 
@@ -46,15 +47,34 @@ _USER_DUPLICATE = """Multiple users defined, couldn't decide which one to use:
 %s or %s
 """
 
-def get_logger(name, level=logging.DEBUG):
-    fmt = '[%(asctime)s]  [%(levelname)s]  [%(name)s]  %(funcName)s  %(message)s'
-    instance = logging.Logger(name, level)
+class NiceFormatter(ColoredFormatter):
+    def __init__(self, fmt, indent=0):
+        fmt = '%(reset)s' + '  ' * indent + fmt
+        super(NiceFormatter, self).__init__(fmt)
+
+    def format(self, record):
+        record.funcName = '[%s]' % record.funcName
+        levelname = record.levelname
+        if levelname in self.colors:
+            color = self.colors[levelname]
+            levelname = levelname[0] * 2
+            record.levelname = '[%s]' % ''.join((color, levelname, self.reset))
+        return super(NiceFormatter, self).format(record)
+
+def get_logger(name, level=logging.DEBUG, indent=0):
+    fmt = '%(levelname)-8s %(funcName)-24s  %(message)s'
+    instance = logging.Logger('couchdb.audit.%s' % name, level)
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter(fmt))
+    handler.setFormatter(NiceFormatter(fmt, indent=indent))
     instance.addHandler(handler)
+    instance.propagate = False
     return instance
 
 def run(url, credentials):
+    root = logging.Logger('couchdb.audit')
+    handler = logging.StreamHandler(sys.stdout)
+    root.addHandler(handler)
+
     server = Server(url)
     server.resource.credentials = credentials
 
@@ -66,7 +86,8 @@ def run(url, credentials):
         sys.exit(1)
 
     cache = {}
-    log = get_logger('couchdb.audit.server')
+    log = get_logger('couchdb.audit.server', indent=1)
+    root.info('* Starting server audit: %s', server.resource.url)
     auditor.audit_server(server, log, cache)
 
     try:
@@ -77,8 +98,9 @@ def run(url, credentials):
         sys.stdout.flush()
         sys.exit(1)
 
-    log = get_logger('couchdb.audit.database')
     for dbname in dblist:
+        root.info('  * Starting database audit: %s', dbname)
+        log = get_logger('couchdb.audit.database',  indent=2)
         url = server.resource(dbname).url
         db = couchdb.Database(url)
         db.resource.credentials = credentials
