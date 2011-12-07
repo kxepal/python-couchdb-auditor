@@ -35,7 +35,7 @@ Options:
 
   --version     Display version information and exit
   -h, --help    Display a this help message and exit
-  -u, --user    Set CouchDB user that would inspect server.
+  -u, --user=   Set CouchDB user that would inspect server.
                 User could be also defined in URL. Password would be requested.
 """ % dict(name=os.path.basename(sys.argv[0]))
 
@@ -117,7 +117,7 @@ def run(url, credentials):
 def main():
     try:
         options, arguments = getopt.gnu_getopt(
-            sys.argv[1:], 'hvu',
+            sys.argv[1:], 'hvu:',
             ['version', 'help', 'user=']
         )
     except getopt.GetoptError, err:
