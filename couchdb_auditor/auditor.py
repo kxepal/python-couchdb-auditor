@@ -471,6 +471,19 @@ def check_db_members(db, log, cache):
     if db_members['roles']:
         log.info('Database member roles: %s', ','.join(db_members['roles']))
 
+@database_rule
+def check_validate_functions(db, log, cache):
+    ddocs = []
+    for row in db.view('_all_docs', startkey='_design/',  endkey='_design0'):
+        ddoc = db[row.id]
+        if 'validate_doc_update' in ddoc:
+            ddocs.append(row.id)
+    if not ddocs:
+        log.error('Database is not protected by validation functions!')
+    else:
+        log.info('Database is protected by next design documents: %s',
+                 ', '.join([ddoc.split('/')[1] for ddoc in ddocs]))
+
 @ddoc_rule
 def check_ddoc_language(ddoc, log, cache):
     if 'language' not in ddoc:
