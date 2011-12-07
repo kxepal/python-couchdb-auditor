@@ -8,6 +8,12 @@
 # you should have received as part of this distribution.
 #
 
+import sys
+
+if sys.version < '2.5':
+    print 'Python 2.5+ required. Sorry :-('
+    sys.exit(1)
+
 try:
     from setuptools import setup
 except ImportError:
