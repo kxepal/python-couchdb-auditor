@@ -15,7 +15,8 @@ from couchdb_auditor.client import Server
 
 _RULES = {
     'server': [],
-    'database': []
+    'database': [],
+    'ddoc': [],
 }
 
 _CVES = [
@@ -54,6 +55,10 @@ def database_rule(func):
     _RULES['database'].append(func)
     return func
 
+def ddoc_rule(func):
+    _RULES['ddoc'].append(func)
+    return func
+
 def get_rules(name):
     return _RULES[name]
 
@@ -63,6 +68,7 @@ def get_cached_value(cache, key, func):
     return cache[key]
 
 def audit_server(server, log, cache=None):
+    log.info('%s', server.resource.url)
     if server.__class__ is couchdb.Server:
         credentials =server.resource.credentials
         server = Server(server.resource.url)
@@ -79,6 +85,7 @@ def audit_server(server, log, cache=None):
             log.error('%s: %s', err.__class__.__name__, err.args[0][1])
 
 def audit_database(db, log, cache=None):
+    log.info('%s', db.name)
     for rule in get_rules('database'):
         try:
             if cache is not None:
@@ -89,6 +96,14 @@ def audit_database(db, log, cache=None):
             log.error('%s: %s', err.__class__.__name__, err)
         except couchdb.HTTPError, err:
             log.error('%s: %s', err.__class__.__name__, err.args[0][1])
+
+def audit_ddoc(ddoc, log, cache=None):
+    log.info('%s', ddoc['_id'])
+    for rule in get_rules('ddoc'):
+        if cache is not None:
+            rule(ddoc, log, cache)
+        else:
+            rule(ddoc, log, {})
 
 @server_rule
 def check_version(server, log, cache):

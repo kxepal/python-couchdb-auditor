@@ -71,10 +71,6 @@ def get_logger(name, level=logging.DEBUG, indent=0):
     return instance
 
 def run(url, credentials):
-    root = logging.Logger('couchdb.audit')
-    handler = logging.StreamHandler(sys.stdout)
-    root.addHandler(handler)
-
     server = Server(url)
     server.resource.credentials = credentials
 
@@ -87,7 +83,6 @@ def run(url, credentials):
 
     cache = {}
     log = get_logger('couchdb.audit.server', indent=1)
-    root.info('* Starting server audit: %s', server.resource.url)
     auditor.audit_server(server, log, cache)
 
     try:
@@ -99,12 +94,22 @@ def run(url, credentials):
         sys.exit(1)
 
     for dbname in dblist:
-        root.info('  * Starting database audit: %s', dbname)
         log = get_logger('couchdb.audit.database',  indent=2)
         url = server.resource(dbname).url
         db = couchdb.Database(url)
         db.resource.credentials = credentials
         auditor.audit_database(db, log, cache)
+
+        try:
+            rows = db.view('_all_docs', startkey='_design/',  endkey='_design0')
+        except HTTPError, err:
+            log.critical('Unable to get design documents list: %s', err.args[1])
+            continue
+
+        for row in rows:
+            log = get_logger('couchdb.audit.ddoc', indent=3)
+            ddoc = db[row.id]
+            auditor.audit_ddoc(ddoc, log, cache)
 
     return 0
 
