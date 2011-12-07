@@ -73,9 +73,14 @@ def get_logger(name, level=logging.DEBUG, indent=0):
     return instance
 
 def run(url, credentials, target='server'):
+    root = logging.Logger('couchdb.audit')
+    handler = logging.StreamHandler(sys.stdout)
+    root.addHandler(handler)
+
     def audit_server(url, credentials):
         server = couchdb.Server(url)
         server.resource.credentials = credentials
+        root.info(' * %s', server.resource.url)
 
         try:
             server.resource.head()
@@ -85,7 +90,7 @@ def run(url, credentials, target='server'):
             sys.exit(1)
 
         cache = {}
-        log = get_logger('couchdb.audit.server', indent=0)
+        log = get_logger('couchdb.audit.server')
         auditor.audit_server(server, log, cache)
 
         try:
@@ -103,9 +108,10 @@ def run(url, credentials, target='server'):
     def audit_database(url, credentials, name=None, cache=None):
         if cache is None:
             cache = {}
-        log = get_logger('couchdb.audit.database',  indent=1)
+        log = get_logger('couchdb.audit.database')
         db = couchdb.Database(url, name=name)
         db.resource.credentials = credentials
+        root.info(' * %s', db.resource.url)
         auditor.audit_database(db, log, cache)
 
         try:
@@ -117,7 +123,8 @@ def run(url, credentials, target='server'):
             return
 
         for row in rows:
-            log = get_logger('couchdb.audit.ddoc', indent=2)
+            root.info(' * %s', db.resource(*row.id.split('/')).url)
+            log = get_logger('couchdb.audit.ddoc')
             ddoc = db[row.id]
             auditor.audit_ddoc(ddoc, log, cache)
 
