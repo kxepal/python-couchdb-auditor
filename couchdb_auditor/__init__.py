@@ -16,7 +16,6 @@ import sys
 from getpass import getpass
 from couchdb.http import extract_credentials, HTTPError
 from couchdb_auditor import auditor
-from couchdb_auditor.client import Server
 from couchdb_auditor.colorlog import ColoredFormatter
 
 __version__ = '0.1'
@@ -71,7 +70,7 @@ def get_logger(name, level=logging.DEBUG, indent=0):
     return instance
 
 def run(url, credentials):
-    server = Server(url)
+    server = couchdb.Server(url)
     server.resource.credentials = credentials
 
     try:

@@ -11,7 +11,6 @@ import couchdb
 import re
 import socket
 import textwrap
-from couchdb_auditor.client import Server
 
 _RULES = {
     'server': [],
@@ -69,10 +68,6 @@ def get_cached_value(cache, key, func):
 
 def audit_server(server, log, cache=None):
     log.info('%s', server.resource.url)
-    if server.__class__ is couchdb.Server:
-        credentials =server.resource.credentials
-        server = Server(server.resource.url)
-        server.resource.credentials = credentials
     for rule in get_rules('server'):
         try:
             if cache is not None:
@@ -155,7 +150,8 @@ def check_CVE_issues(server, log, cache):
 
 @server_rule
 def check_audit_user(server, log, cache):
-    session = get_cached_value(cache, 'session', server.session)
+    get_session = lambda: server.resource('_session').get_json()[2]
+    session = get_cached_value(cache, 'session', get_session)
 
     userctx = session['userCtx']
     roles = '; site-wide roles: %s' % ', '.join(userctx['roles'])
@@ -215,7 +211,8 @@ def check_admins(server, log, cache):
 
 @server_rule
 def check_auth_handlers(server, log, cache):
-    session = get_cached_value(cache, 'session', server.session)
+    get_session = lambda: server.resource('_session').get_json()[2]
+    session = get_cached_value(cache, 'session', get_session)
 
     default_handlers = ['oauth', 'cookie', 'default']
     server_handlers = session['info']['authentication_handlers']
@@ -295,7 +292,8 @@ def check_query_servers(server, log, cache):
 
 @server_rule
 def check_auth_db(server, log, cache):
-    session = get_cached_value(cache, 'session', server.session)
+    get_session = lambda: server.resource('_session').get_json()[2]
+    session = get_cached_value(cache, 'session', get_session)
 
     auth_db = session['info']['authentication_db']
     if auth_db != '_users':
@@ -315,7 +313,8 @@ def check_db_users(server, log, cache):
                 continue
             users[_id] = db[_id]
         return users
-    session = get_cached_value(cache, 'session', server.session)
+    get_session = lambda: server.resource('_session').get_json()[2]
+    session = get_cached_value(cache, 'session', get_session)
 
     auth_db = session['info']['authentication_db']
     db = couchdb.Database(server.resource(auth_db).url)
