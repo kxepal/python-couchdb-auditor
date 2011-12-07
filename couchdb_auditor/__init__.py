@@ -82,7 +82,7 @@ def run(url, credentials):
         sys.exit(1)
 
     cache = {}
-    log = get_logger('couchdb.audit.server', indent=1)
+    log = get_logger('couchdb.audit.server', indent=0)
     auditor.audit_server(server, log, cache)
 
     try:
@@ -94,7 +94,7 @@ def run(url, credentials):
         sys.exit(1)
 
     for dbname in dblist:
-        log = get_logger('couchdb.audit.database',  indent=2)
+        log = get_logger('couchdb.audit.database',  indent=1)
         url = server.resource(dbname).url
         db = couchdb.Database(url, name=dbname)
         db.resource.credentials = credentials
@@ -109,7 +109,7 @@ def run(url, credentials):
             continue
 
         for row in rows:
-            log = get_logger('couchdb.audit.ddoc', indent=3)
+            log = get_logger('couchdb.audit.ddoc', indent=2)
             ddoc = db[row.id]
             auditor.audit_ddoc(ddoc, log, cache)
 
