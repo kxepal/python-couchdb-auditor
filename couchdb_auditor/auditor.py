@@ -136,7 +136,7 @@ def check_CVE_issues(server, log, cache):
         log.warn('Unable to extract version info from: %s', version)
         return
 
-    version = map(int, v_match.groups())
+    version = [int(item) for item in v_match.groups()]
     affected = False
     for bill in _CVES:
         if bill['applies'](*version):
@@ -203,7 +203,7 @@ def check_admins(server, log, cache):
     else:
         count = len(admins)
         if count == 1:
-            log.info('There is only one admin on couch: %s', admins.keys()[0]),
+            log.info('There is only one admin on couch: %s', admins.keys()[0])
         else:
             log.warn('In production, admins should be used rarely,'
                       ' but yet you have many (%d):'
