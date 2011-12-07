@@ -203,7 +203,7 @@ def check_admins(server, log, cache):
     else:
         count = len(admins)
         if count == 1:
-            log.info('There is only one admin on couch: %s', admins[0]),
+            log.info('There is only one admin on couch: %s', admins.keys()[0]),
         else:
             log.warn('In production, admins should be used rarely,'
                       ' but yet you have many (%d):'
