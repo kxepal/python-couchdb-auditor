@@ -21,7 +21,7 @@ except ImportError:
 
 setup(
     name = 'couchdb-auditor',
-    version = '0.1',
+    version = '0.2',
 
     description = \
         'Audit configuration and security issues for an Apache CouchDB server.',
