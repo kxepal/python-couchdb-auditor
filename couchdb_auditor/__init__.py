@@ -205,7 +205,7 @@ def main():
         sys.exit(1)
 
     url = arguments[0]
-    if not url.startswith('http://'):
+    if not url.startswith(('http://', 'https://')):
         url = 'http://' + url
     _, credentials = extract_credentials(url)
 
